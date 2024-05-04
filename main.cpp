@@ -41,8 +41,8 @@ std::stack<Location> loc_stack;
 // Direction stack for easy backtracking through maze when a dead end is found during mapping
 std::stack<int> dir_stack;
 
-// Action stack for processing optimal sequence of actions to find goal state
-std::stack<int> act_stack; // Assuming Action is a user-defined type (wahrscheinlich hier als typ std::queue<State>)
+// Action stack/vector for processing optimal sequence of actions to find goal state
+std::vector<int> act_vector;
 
 // Global array/vector to act as a queue to save all the states such that we do not get any memory leaks
 std::vector<State> state_vector;
@@ -327,31 +327,33 @@ int find_bfs_shortest_path() {
             return counter;
         }
 
-        // Provide new references to my location for easier reference in code below
+        // Provide new references to my location and position for easier reference/better readability in code below
         Location* my_loc = current_state->location;
+        int pos_0 = my_loc->position[0];
+        int pos_1 = my_loc->position[1];
 
         // checks whether there are walls and adds possible connections from current square
         // Links the next locations to the current location if there are no walls and the next location has not been visited (current location becomes parent of next location)
-        if(!my_loc->walls[0] && !maze[my_loc->position[0]][my_loc->position[1] + 1].visited && my_loc->can_move_to(maze[my_loc->position[0]][my_loc->position[1] + 1])) {
-            State north_state(&maze[my_loc->position[0]][my_loc->position[1] + 1], (0 - current_state->cur_dir + 4) % 4, 0, counter);
+        if(!my_loc->walls[0] && !maze[pos_0][pos_1 + 1].visited && my_loc->can_move_to(maze[pos_0][pos_1 + 1])) {
+            State north_state(&maze[pos_0][pos_1 + 1], (0 - current_state->cur_dir + 4) % 4, 0, counter);
             north_state.location->set_visited(true); // Mark the location as visited
             log(north_state.to_string()); // print to terminal
             state_vector.push_back(north_state);
         }
-        if(!my_loc->walls[1] && !maze[my_loc->position[0] + 1][my_loc->position[1]].visited && my_loc->can_move_to(maze[my_loc->position[0] + 1][my_loc->position[1]])) {
-            State east_state(&maze[my_loc->position[0] + 1][my_loc->position[1]], (1 - current_state->cur_dir + 4) % 4, 1, counter);
+        if(!my_loc->walls[1] && !maze[pos_0 + 1][pos_1].visited && my_loc->can_move_to(maze[pos_0 + 1][pos_1])) {
+            State east_state(&maze[pos_0 + 1][pos_1], (1 - current_state->cur_dir + 4) % 4, 1, counter);
             east_state.location->set_visited(true); // Mark the location as visited
             log(east_state.to_string()); // print to terminal
             state_vector.push_back(east_state);
         }
-        if(!my_loc->walls[2] && !maze[my_loc->position[0]][my_loc->position[1] - 1].visited && my_loc->can_move_to(maze[my_loc->position[0]][my_loc->position[1] - 1])) {
-            State south_state(&maze[my_loc->position[0]][my_loc->position[1] - 1], (2 - current_state->cur_dir + 4) % 4, 2, counter);
+        if(!my_loc->walls[2] && !maze[pos_0][pos_1 - 1].visited && my_loc->can_move_to(maze[pos_0][pos_1 - 1])) {
+            State south_state(&maze[pos_0][pos_1 - 1], (2 - current_state->cur_dir + 4) % 4, 2, counter);
             south_state.location->set_visited(true); // Mark the location as visited
             log(south_state.to_string()); // print to terminal
             state_vector.push_back(south_state);
         }
-        if(!my_loc->walls[3] && !maze[my_loc->position[0] - 1][my_loc->position[1]].visited && my_loc->can_move_to(maze[my_loc->position[0] - 1][my_loc->position[1]])) {
-            State west_state(&maze[my_loc->position[0] - 1][my_loc->position[1]], (3 - current_state->cur_dir + 4) % 4, 3, counter);
+        if(!my_loc->walls[3] && !maze[pos_0 - 1][pos_1].visited && my_loc->can_move_to(maze[pos_0 - 1][pos_1])) {
+            State west_state(&maze[pos_0 - 1][pos_1], (3 - current_state->cur_dir + 4) % 4, 3, counter);
             west_state.location->set_visited(true); // Mark the location as visited
             log(west_state.to_string()); // print to terminal
             state_vector.push_back(west_state);
@@ -373,14 +375,14 @@ void execute_shortest_path(int solution_position) {
     State state = state_vector[solution_position]; // Get the goal state
     while (state.action != -1) {   // While I have not reached the home position
         log(state.to_string()); // (added)
-        act_stack.push(state.action);  // Push action to stack
+        act_vector.push_back(state.action);  // Push action to vector
         mark_bktrk_api(state.location->position);  // Mark the backtrack on the maze for visualization
         state = state_vector[state.parent];    // Traverse up to parent
     }
+    int counter = act_vector.size() - 1;
     log("Backtracking complete");
-    while (!act_stack.empty()) {    // Pop off actions from the stack and execute them in the maze
-        int act = act_stack.top();
-        act_stack.pop();
+    while (counter >= 0) {    // start at the back of actions (at origin) and execute them in the maze until we are at the first action
+        int act = act_vector[counter]; // Get action from vector
         mark_solution_api();  // Mark my square in MMS as part of the solution on the maze for better visualization
         if (act == 1) {
             turn_right();
@@ -388,6 +390,7 @@ void execute_shortest_path(int solution_position) {
             turn_left();
         }
         move_forward();
+        counter--;
     }
 }
 
