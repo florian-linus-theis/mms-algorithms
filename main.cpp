@@ -1,7 +1,7 @@
-#include <vector> // For lists/arrays
+#include <vector> // For lists/arrays with improved memory management
 #include <iostream> // for input/output
 #include <stack> // For LIFO stack
-#include <queue> // For FIFO queue
+#include <queue> // For FIFO queue (kann weg)
 #include "API.h" // Later purposes
 #include <string> // For string operations
 
@@ -16,7 +16,6 @@ constexpr int MAZE_HEIGHT = 16;
 
 // For tracking current global direction
 // 0 = North, 1 = East, 2 = South, 3 = West
-// Could be solved using an enum
 int cur_direction = 0;
 
 // For tracking current global 'physical' position in maze as [x, y], initialized to [0, 0] (i.e. bottom left cell, origin)
@@ -44,10 +43,8 @@ std::stack<int> dir_stack;
 // Action stack for processing optimal sequence of actions to find goal state
 std::stack<int> act_stack; // Assuming Action is a user-defined type (wahrscheinlich hier als typ std::queue<State>)
 
-// State object queue for unexplored nodes during breadth first search
-std::queue<State> frontier; // Assuming State is a user-defined type
-
-std::vector<State> state_vector; // added (setting up a global array to act as a queue to save all the states such that we do not get any memory leaks)
+// Global array/vector to act as a queue to save all the states such that we do not get any memory leaks
+std::vector<State> state_vector;
 
 // Function to update position by one cell in the maze
 // Move direction can only be range 0-3 with 0 being North
@@ -285,7 +282,17 @@ void dfs_map_maze() {
 // ------------------------------------------------------------------------------------------------------------------------------
 // Algorithm for Solution path
 
-// Defines breadth-first-search for finding optimal route to maze center
+// This code implements a breadth-first search algorithm to find the shortest path in a maze. Here's a brief explanation of how it works:
+// Initialize Locations: All locations in the maze are initialized as unvisited.
+// Generate Initial State: Create the initial state with the starting location of the maze and push it into global vector called state_vector.
+// Main Loop:
+// Loop until every state in the state_vector has been explored.
+// Get the current state from the state_vector.
+// Mark the current location as visited.
+// If the current state is a goal state, return its position in the state_vector.
+// For each possible move (north, east, south, west), check if there are no walls and the next location has not been visited. 
+// If so, create a new state for that move, push it into the state_vector, and mark the new location as visited.
+
 int find_bfs_shortest_path() {
     // Initialize all locations to unvisited
     for (int i = 0; i < MAZE_HEIGHT; ++i) {
@@ -293,13 +300,7 @@ int find_bfs_shortest_path() {
             maze[i][j].set_visited(false);
         }
     }
-    
-    // Gregi Variabvle
-    char gregi[1000];
-    sprintf(gregi, "Gregi %s %d", __FILE__, __LINE__);
-    log(gregi);
-
-    log("all locations unvisited"); // (added)
+    log("Marking all locations as unvisited"); // (added)
 
     // Generate initial state: parent is self, action is null
     State first_state(&maze[0][0]);
@@ -307,82 +308,66 @@ int find_bfs_shortest_path() {
     state_vector.push_back(first_state); // Push first state to our queue
     log(first_state.to_string()); // (added
 
-    // While queue is not empty
     int counter = 0; 
-    // Febore:: frontier.empty()
+    // while we have not every state in the state_vector
     while (counter < state_vector.size()) {
-        std::cerr << counter << std::endl; 
-        
-        // if (counter > 150) {
-        //     std::cerr << counter << std::endl;
-        //     log("1000 schritte gemacht");
-        //     exit(0);
-        // }
-        State* current_state = &state_vector[counter]; // Get the first state from the queue (FIFO)
-        // frontier.pop(); // dequeue the state
-        log("next state dequeued"); // (added)
-        current_state->location->set_visited(true);  // Mark state location as visited
+        State* current_state = &state_vector[counter]; // Get the first node (state) we have not yet explored from the global array (FIFO)
+        current_state->location->set_visited(true);  // Mark state's location as visited
         mark_bfs_api(current_state->location->position); // Just for visualization purposes in the MMS
         
-        // If it is goal, return it
+        // If it is goal, return the position of it in global state vector
         if (current_state->is_goal()) {
-            log("goal state found"); // (added)
-            // return current_state;
+            log("goal state found");
             return counter;
         }
 
         // Provide new references to my location for easier reference in code below
         Location* my_loc = current_state->location;
 
-        log("locations initialized"); // (added)
         // checks whether there are walls and adds possible connections from current square
         // Links the next locations to the current location if there are no walls and the next location has not been visited (current location becomes parent of next location)
         if(!my_loc->walls[0] && !maze[my_loc->position[0]][my_loc->position[1] + 1].visited && my_loc->can_move_to(maze[my_loc->position[0]][my_loc->position[1] + 1])) {
-            log("north location added"); // (added)
-            State north_state(&maze[my_loc->position[0]][my_loc->position[1] + 1], current_state, (0 - current_state->cur_dir + 4) % 4, 0, counter);
-            log(north_state.to_string()); // (added)
+            State north_state(&maze[my_loc->position[0]][my_loc->position[1] + 1], (0 - current_state->cur_dir + 4) % 4, 0, counter);
+            log(north_state.to_string()); // print to terminal
             state_vector.push_back(north_state);
         }
         if(!my_loc->walls[1] && !maze[my_loc->position[0] + 1][my_loc->position[1]].visited && my_loc->can_move_to(maze[my_loc->position[0] + 1][my_loc->position[1]])) {
-            log("east location added"); // (added)
-            State east_state(&maze[my_loc->position[0] + 1][my_loc->position[1]], current_state, (1 - current_state->cur_dir + 4) % 4, 1, counter);
-            log(east_state.to_string()); // (added)
+            State east_state(&maze[my_loc->position[0] + 1][my_loc->position[1]], (1 - current_state->cur_dir + 4) % 4, 1, counter);
+            log(east_state.to_string()); // print to terminal
             state_vector.push_back(east_state);
         }
         if(!my_loc->walls[2] && !maze[my_loc->position[0]][my_loc->position[1] - 1].visited && my_loc->can_move_to(maze[my_loc->position[0]][my_loc->position[1] - 1])) {
-            log("south location added"); // (added)
-            State south_state(&maze[my_loc->position[0]][my_loc->position[1] - 1], current_state, (2 - current_state->cur_dir + 4) % 4, 2, counter);
-            log(south_state.to_string()); // (added)
+            State south_state(&maze[my_loc->position[0]][my_loc->position[1] - 1], (2 - current_state->cur_dir + 4) % 4, 2, counter);
+            log(south_state.to_string()); // print to terminal
             state_vector.push_back(south_state);
         }
         if(!my_loc->walls[3] && !maze[my_loc->position[0] - 1][my_loc->position[1]].visited && my_loc->can_move_to(maze[my_loc->position[0] - 1][my_loc->position[1]])) {
-            log("west location added"); // (added)
-            State west_state(&maze[my_loc->position[0] - 1][my_loc->position[1]], current_state, (3 - current_state->cur_dir + 4) % 4, 3, counter);
-            log(west_state.to_string()); // (added)
+            State west_state(&maze[my_loc->position[0] - 1][my_loc->position[1]], (3 - current_state->cur_dir + 4) % 4, 3, counter);
+            log(west_state.to_string()); // print to terminal
             state_vector.push_back(west_state);
         }
-        counter++;
-        log("locations added to frontier"); // (added)
-        
+
+        counter++;     
     }
+    log("No solution found");
+    return -1; // If no solution is found
 }
 
 // Takes a solution state and uses it to physically traverse the maze - this constitutes the fastest possible run
-void execute_shortest_path(int counter) {
-    log("Executing shortest path"); // (added)
-    State state = state_vector[counter]; // Get the goal state
-    while (state.parent != nullptr) {   // While I have not reached the home position
-        log(to_string(counter));  // Create a pointer to the solution state
-        log("Checking if I have reached the home position"); // (added)
+void execute_shortest_path(int solution_position) {
+    if (solution_position == -1) {  // If no solution was found
+        log("No solution found");
+        return;
+    }
+    log("Executing shortest path");
+    State state = state_vector[solution_position]; // Get the goal state
+    while (state.action != -1) {   // While I have not reached the home position
         log(state.to_string()); // (added)
-        if (!state.parent) {
-            log("Parent is null"); // (added)
-        }
         act_stack.push(state.action);  // Push action to stack
         mark_bktrk_api(state.location->position);  // Mark the backtrack on the maze for visualization
-        state = state_vector[state.array_loc];    // Traverse up to parent
+        state = state_vector[state.parent];    // Traverse up to parent
     }
-    log("Backtracking complete"); // (added)
+    log("Backtracking complete");
     while (!act_stack.empty()) {    // Pop off actions from the stack and execute them in the maze
         int act = act_stack.top();
         act_stack.pop();
@@ -404,12 +389,11 @@ void execute_shortest_path(int counter) {
 int main() { 
     log("Running...");
     initialize_maze(); //initializing maze
-    // state_vector.reserve(MAZE_HEIGHT*MAZE_WIDTH);
-    dfs_map_maze();
-    log("DFS complete");  // Start facing north at the initial position and end back at the initial position after the maze has been mapped
-    set_dir(0);      // Reset heading to north
-     // Find the shortest path to solution using breadth-first search
-    execute_shortest_path(find_bfs_shortest_path());   // Execute the shortest path solution once found
+    dfs_map_maze(); // Mapping the maze using depth-first search
+    log("DFS complete"); 
+    set_dir(0); // Reset heading to north
+    int position_solution = find_bfs_shortest_path(); // Find the shortest path to solution using breadth-first search
+    execute_shortest_path(position_solution);   // Execute the shortest path solution once found
     log("Done!");
     return 0;
 }
