@@ -1,4 +1,6 @@
 #include "./location.cpp" // importing location class; TODO: import Header file
+#include <iostream>
+#include <sstream> // for std::ostringstream
 
 class State {
 	public:
@@ -6,15 +8,23 @@ class State {
     State* parent; // parent is the adjacent state that generated this state (a State ref)
     // action is the action the parent took to reach this state, encoded as the 'turn' taken before moving forward
     // turn can be 0 - no turn, 1 - turn right, 2 - turn around, 3 - turn left, or -1 if null action (see default)
+    int array_loc;
     int action;
     int cur_dir;
 
     // Constructor with member initializer list
-    State(Location* loc, State* par = nullptr, int act = -1, int dir = 0)
-        : location(loc), parent(par), action(act), cur_dir(dir) {
-        if (!parent) {
-            parent = this; //  if a parent state is not provided during construction, the parent pointer defaults to pointing to the current object itself.
-        }
+    State(Location* loc, State* par = nullptr, int act = -1, int dir = 0, int a_loc = 0)
+        : location(loc), parent(par), action(act), cur_dir(dir), array_loc(a_loc) {}
+
+    // For printing the state
+    std::string to_string() const {
+        std::ostringstream oss;
+        oss << "Location: (" << location->position[0] << ", " << location->position[1] << ")" << std::endl;
+        oss << "Address: " << this << "" << std::endl; // "this" is a pointer to the current object
+        oss << "Parent: " << parent << std::endl;
+        oss << "Action: " << action << std::endl;
+        oss << "Current Direction: " << cur_dir << std::endl;
+        return oss.str();
     }
 
     // Setters

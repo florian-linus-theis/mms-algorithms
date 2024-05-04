@@ -25,7 +25,7 @@ std::vector<int> cur_position = {0, 0};
 // For tracking all maze data, create a 2D vector of Locations
 std::vector<std::vector<Location>> maze (MAZE_HEIGHT, std::vector<Location>(MAZE_WIDTH));
 
-// Initialize the maze with Location objectss
+// Initialize the maze with Location objects
 // maze is a global variable so no need to pass it here
 void initialize_maze(){
   for (int i = 0; i < MAZE_HEIGHT; ++i) {
@@ -47,7 +47,7 @@ std::stack<int> act_stack; // Assuming Action is a user-defined type (wahrschein
 // State object queue for unexplored nodes during breadth first search
 std::queue<State> frontier; // Assuming State is a user-defined type
 
-
+std::vector<State> state_vector; // added (setting up a global array to act as a queue to save all the states such that we do not get any memory leaks)
 
 // Function to update position by one cell in the maze
 // Move direction can only be range 0-3 with 0 being North
@@ -286,153 +286,101 @@ void dfs_map_maze() {
 // Algorithm for Solution path
 
 // Defines breadth-first-search for finding optimal route to maze center
-State find_bfs_shortest_path() {
+int find_bfs_shortest_path() {
     // Initialize all locations to unvisited
     for (int i = 0; i < MAZE_HEIGHT; ++i) {
         for (int j = 0; j < MAZE_WIDTH; ++j) {
             maze[i][j].set_visited(false);
         }
     }
+    
+    // Gregi Variabvle
+    char gregi[1000];
+    sprintf(gregi, "Gregi %s %d", __FILE__, __LINE__);
+    log(gregi);
 
     log("all locations unvisited"); // (added)
 
     // Generate initial state: parent is self, action is null
     State first_state(&maze[0][0]);
-    frontier.push(first_state); // Push first state to queue
-
-    log ("first state pushed to frontier"); // (added)
+    // frontier.push(first_state); // Push first state to queue
+    state_vector.push_back(first_state); // Push first state to our queue
+    log(first_state.to_string()); // (added
 
     // While queue is not empty
-    while (!frontier.empty()) {
-        // Dequeue next state
-        State next_state = frontier.front();
-        frontier.pop();
-
-        log("next state dequeued"); // (added)
-
-        // Mark state location as visited
-        // maze[next_state.location->position[0]][next_state.location->position[1]].set_visited(true);
-        next_state.location->set_visited(true);
-        mark_bfs_api(next_state.location->position); // Just for visualization purposes in the MMS
-
-        log("location marked as visited"); // (added)
-
-        // If it is goal, return it
-        if (next_state.is_goal()) {
-            log("goal state found"); // (added)
-            return next_state;
-        }
+    int counter = 0; 
+    // Febore:: frontier.empty()
+    while (counter < state_vector.size()) {
+        std::cerr << counter << std::endl; 
         
-        // Hier könnte issue sein
-        // Provide new references to my location and possible adjacent locations for easier reference in code below
-        Location* my_loc = next_state.location;
-        Location* north_loc_ptr = nullptr;
-        Location* east_loc_ptr = nullptr;
-        Location* south_loc_ptr = nullptr;
-        Location* west_loc_ptr = nullptr;
+        // if (counter > 150) {
+        //     std::cerr << counter << std::endl;
+        //     log("1000 schritte gemacht");
+        //     exit(0);
+        // }
+        State* current_state = &state_vector[counter]; // Get the first state from the queue (FIFO)
+        // frontier.pop(); // dequeue the state
+        log("next state dequeued"); // (added)
+        current_state->location->set_visited(true);  // Mark state location as visited
+        mark_bfs_api(current_state->location->position); // Just for visualization purposes in the MMS
+        
+        // If it is goal, return it
+        if (current_state->is_goal()) {
+            log("goal state found"); // (added)
+            // return current_state;
+            return counter;
+        }
+
+        // Provide new references to my location for easier reference in code below
+        Location* my_loc = current_state->location;
 
         log("locations initialized"); // (added)
         // checks whether there are walls and adds possible connections from current square
-        // due to scope of variables inside if statements, we need to declare them outside of the if statements and use pointers to reference them
-        if (!my_loc->walls[0]) {
-            // Location north_loc = maze[my_loc->position[0]][my_loc->position[1] + 1];
-            north_loc_ptr = &maze[my_loc->position[0]][my_loc->position[1] + 1];
+        // Links the next locations to the current location if there are no walls and the next location has not been visited (current location becomes parent of next location)
+        if(!my_loc->walls[0] && !maze[my_loc->position[0]][my_loc->position[1] + 1].visited && my_loc->can_move_to(maze[my_loc->position[0]][my_loc->position[1] + 1])) {
             log("north location added"); // (added)
+            State north_state(&maze[my_loc->position[0]][my_loc->position[1] + 1], current_state, (0 - current_state->cur_dir + 4) % 4, 0, counter);
+            log(north_state.to_string()); // (added)
+            state_vector.push_back(north_state);
         }
-        if (!my_loc->walls[1]) {
-            // Location east_loc = maze[my_loc->position[0] + 1][my_loc->position[1]];
-            east_loc_ptr = &maze[my_loc->position[0] + 1][my_loc->position[1]];
+        if(!my_loc->walls[1] && !maze[my_loc->position[0] + 1][my_loc->position[1]].visited && my_loc->can_move_to(maze[my_loc->position[0] + 1][my_loc->position[1]])) {
             log("east location added"); // (added)
+            State east_state(&maze[my_loc->position[0] + 1][my_loc->position[1]], current_state, (1 - current_state->cur_dir + 4) % 4, 1, counter);
+            log(east_state.to_string()); // (added)
+            state_vector.push_back(east_state);
         }
-        if (!my_loc->walls[2]) {
-            //Location south_loc = maze[my_loc->position[0]][my_loc->position[1] - 1];
-            south_loc_ptr = &maze[my_loc->position[0]][my_loc->position[1] - 1];
-            log("west location added"); // (added)
-        }
-        if (!my_loc->walls[3]) {
-            // Location west_loc = maze[my_loc->position[0] - 1][my_loc->position[1]];
-            west_loc_ptr = &maze[my_loc->position[0] - 1][my_loc->position[1]];
+        if(!my_loc->walls[2] && !maze[my_loc->position[0]][my_loc->position[1] - 1].visited && my_loc->can_move_to(maze[my_loc->position[0]][my_loc->position[1] - 1])) {
             log("south location added"); // (added)
+            State south_state(&maze[my_loc->position[0]][my_loc->position[1] - 1], current_state, (2 - current_state->cur_dir + 4) % 4, 2, counter);
+            log(south_state.to_string()); // (added)
+            state_vector.push_back(south_state);
         }
-
-        log("locations checked for walls"); // (added)
-
-        // If the position north has not been visited and I can reach it, generate a new state representing the new
-        // location, with this location as its parent, and and the proper number of turns needed to reach it
-        if (north_loc_ptr != nullptr && !north_loc_ptr->visited && my_loc->can_move_to(*north_loc_ptr)) {
-            // Create a new state where I move from my_location to the north
-            State north_state(north_loc_ptr, &next_state, (0 - next_state.cur_dir + 4) % 4, 0);
-            frontier.push(north_state); // Add it to the frontier queue
-            log("north state added to frontier"); // (added)
+        if(!my_loc->walls[3] && !maze[my_loc->position[0] - 1][my_loc->position[1]].visited && my_loc->can_move_to(maze[my_loc->position[0] - 1][my_loc->position[1]])) {
+            log("west location added"); // (added)
+            State west_state(&maze[my_loc->position[0] - 1][my_loc->position[1]], current_state, (3 - current_state->cur_dir + 4) % 4, 3, counter);
+            log(west_state.to_string()); // (added)
+            state_vector.push_back(west_state);
         }
-        // Similar Logic for the other directions
-        if (east_loc_ptr != nullptr && !east_loc_ptr->visited && my_loc->can_move_to(*east_loc_ptr)) {
-            State east_state(east_loc_ptr, &next_state, (1 - next_state.cur_dir + 4) % 4, 1);
-            frontier.push(east_state);
-            log("east state added to frontier"); // (added)
-        }
-        if (south_loc_ptr != nullptr && !south_loc_ptr->visited && my_loc->can_move_to(*south_loc_ptr)) {
-            State south_state(south_loc_ptr, &next_state, (2 - next_state.cur_dir + 4) % 4, 2);
-            frontier.push(south_state);
-            log("south state added to frontier"); // (added)
-        }
-        if (west_loc_ptr != nullptr && !west_loc_ptr->visited && my_loc->can_move_to(*west_loc_ptr)) {
-            State west_state(west_loc_ptr, &next_state, (3 - next_state.cur_dir + 4) % 4, 3);
-            frontier.push(west_state);
-            log("west state added to frontier"); // (added)
-        }
+        counter++;
         log("locations added to frontier"); // (added)
-
+        
     }
 }
 
 // Takes a solution state and uses it to physically traverse the maze - this constitutes the fastest possible run
-void execute_shortest_path(State sol) {
+void execute_shortest_path(int counter) {
     log("Executing shortest path"); // (added)
-    // while (sol.parent != &sol) {   // While I have not reached the home position
-    //     log("Checking if I have reached the home position"); // (added)
-    //     act_stack.push(sol.action);  // Push action to stack
-    //     mark_bktrk_api(sol.location.position);  // Mark the backtrack on the maze for visualiziation
-    //     sol = sol.parent;    // Traverse up to parent
-    //     log("Traversing up to parent"); // (added)
-    // }
-    string output = "position: " + to_string(sol.location->position[0]); // (added)  
-    log(output); // (added)
-    string output2 = "parent: " + to_string((unsigned long long)(void**)sol.parent); + "\n"; // (added)
-    log(output2); // (added)
-    string output3 = "action: " + to_string(sol.action) + "\n"; // (added)
-    log(output3); // (added)
-    string output5 = "parent_action: " + to_string(sol.parent->action); + "\n"; // (added)
-    log(output5); // (added)
-    // string output6 = "parent_parent: " + to_string((unsigned long long)(void**)sol.parent->parent); + "\n"; // (added)
-    // log(output6); // (added)
-    string output4 = "parent_position: " + to_string(sol.parent->location->position[0]) + "\n"; // (added)    
-    log(output4); // (added)
-    // string output7 = "parent_cur_dir: " + to_string(sol.parent->cur_dir) + "\n"; // (added)
-    // log(output7); // (added)
-    while (sol.parent != &sol) {   // While I have not reached the home position
+    State state = state_vector[counter]; // Get the goal state
+    while (state.parent != nullptr) {   // While I have not reached the home position
+        log(to_string(counter));  // Create a pointer to the solution state
         log("Checking if I have reached the home position"); // (added)
-        string output_pos = "position: " + to_string(sol.location->position[0]);
-        log(output_pos); // (added)  
-        if (sol.parent) {
+        log(state.to_string()); // (added)
+        if (!state.parent) {
             log("Parent is null"); // (added)
         }
-        output_pos = "position: " + to_string(sol.location->position[1]);
-        log(output_pos); // (added)
-        output_pos = "parent_position: " + to_string(sol.parent->location->position[0]);
-        log(output_pos);
-        act_stack.push(sol.action);  // Push action to stack
-        // log("Action pushed to stack"); //  (added)
-        mark_bktrk_api(sol.location->position);  // Mark the backtrack on the maze for visualization
-        // // log("Backtrack marked on maze"); // (added)
-        // sol.set_loc = sol.parent->location; // Get parent object
-        // // // log("that worked"); // (added)
-        // sol.action = sol.parent->action; // Get action from parent object
-        // sol.cur_dir = sol.parent->cur_dir; // Get current direction from parent object
-        // sol.parent = sol.parent->parent; // Get parent from parent object
-        // // log("that worked"); // (added)
-        // // log("Traversing up to parent"); // (added)
-        sol = *(sol.parent);    // Traverse up to parent
+        act_stack.push(state.action);  // Push action to stack
+        mark_bktrk_api(state.location->position);  // Mark the backtrack on the maze for visualization
+        state = state_vector[state.array_loc];    // Traverse up to parent
     }
     log("Backtracking complete"); // (added)
     while (!act_stack.empty()) {    // Pop off actions from the stack and execute them in the maze
@@ -453,14 +401,15 @@ void execute_shortest_path(State sol) {
 // ------------------------------------------------------------------------------------------------------------------------
 // Main function
 
-int main() {
+int main() { 
     log("Running...");
     initialize_maze(); //initializing maze
+    // state_vector.reserve(MAZE_HEIGHT*MAZE_WIDTH);
     dfs_map_maze();
     log("DFS complete");  // Start facing north at the initial position and end back at the initial position after the maze has been mapped
     set_dir(0);      // Reset heading to north
      // Find the shortest path to solution using breadth-first search
     execute_shortest_path(find_bfs_shortest_path());   // Execute the shortest path solution once found
     log("Done!");
-    return 1;
+    return 0;
 }
