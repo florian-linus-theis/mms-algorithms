@@ -9,9 +9,10 @@ class Location {
     std::vector<bool> walls; // list of 4 booleans (north, east, south, west)
     std::vector<int> position; // order pair list [x, y]
     bool visited; // boolean if the location has been visited
+    bool ballgreifer;
 
     // constructor function that sets the position if a position is passed
-    Location(std::vector<int> pos = {}) : position({-1, -1}), visited(false) {
+    Location(std::vector<int> pos = {}) : position({-1, -1}), visited(false), ballgreifer(false){
         walls = {false, false, false, false};
         if (!pos.empty()) {
             position[0] = pos[0];
@@ -33,6 +34,11 @@ class Location {
     // takes boolean and updates visited property
     void set_visited(bool vis=true) {
         visited = vis;
+    }
+
+    // sets the ballgreifer property
+    void set_ballgreifer(bool bg=true) {
+        ballgreifer = bg;
     }
 
     // takes the position of another Location Cell and return boolean whether two cells are adjacent and have no walls in between them

@@ -4,12 +4,15 @@
 #include <queue> // For FIFO queue (kann weg)
 #include "API.h" // Later purposes
 #include <string> // For string operations
+#include <windows.h> // For sleep Function in Ballgreifer simulation
 
 // #include "./location.cpp" // importing location class
 #include "location.h"
 #include "state.h" // importing state class
-// TODO: write header file
 using namespace std;
+
+// Using the Ballgreifer Version or not?
+constexpr bool BALLGREIFER = true;
 
 // Initializing maze size with constexpr to set them up as compile-time-constants rather than runtime constants
 constexpr int MAZE_WIDTH = 16;
@@ -33,6 +36,35 @@ void initialize_maze(){
           maze[i][j] = Location({i, j});
       }
   }
+}
+
+
+// To initialize all walls in the Ballgreifer-Area
+void initialize_maze_with_ballgreifer(){
+    // first cell
+    maze[1][0].set_visited(true);
+    maze[1][0].set_walls({false, false, true, true});
+    maze[1][0].set_ballgreifer(true);
+    // second cell
+    maze[2][0].set_visited(true);
+    maze[2][0].set_walls({false, true, true, false});
+    maze[2][0].set_ballgreifer(true);
+    // third cell
+    maze[1][1].set_visited(true);
+    maze[1][1].set_walls({false, false, false, false});
+    maze[1][1].set_ballgreifer(true);
+    // fourth cell
+    maze[2][1].set_visited(true);
+    maze[2][1].set_walls({false, true, false, false});
+    maze[2][1].set_ballgreifer(true);
+    // fifth cell
+    maze[1][2].set_visited(true);
+    maze[1][2].set_walls({true, false, false, false});
+    maze[1][2].set_ballgreifer(true);
+    // sixth cell
+    maze[2][2].set_visited(true);
+    maze[2][2].set_walls({true, true, false, false});
+    maze[2][2].set_ballgreifer(true);
 }
 
 // Location object stack for tracking locations that may need to be explored during mapping
@@ -334,25 +366,25 @@ int find_bfs_shortest_path() {
 
         // checks whether there are walls and adds possible connections from current square
         // Links the next locations to the current location if there are no walls and the next location has not been visited (current location becomes parent of next location)
-        if(!my_loc->walls[0] && !maze[pos_0][pos_1 + 1].visited && my_loc->can_move_to(maze[pos_0][pos_1 + 1])) {
+        if(!my_loc->walls[0] && !maze[pos_0][pos_1 + 1].visited && my_loc->can_move_to(maze[pos_0][pos_1 + 1]) && my_loc->ballgreifer == false) {
             State north_state(&maze[pos_0][pos_1 + 1], (0 - current_state->cur_dir + 4) % 4, 0, counter);
             north_state.location->set_visited(true); // Mark the location as visited
             log(north_state.to_string()); // print to terminal
             state_vector.push_back(north_state);
         }
-        if(!my_loc->walls[1] && !maze[pos_0 + 1][pos_1].visited && my_loc->can_move_to(maze[pos_0 + 1][pos_1])) {
+        if(!my_loc->walls[1] && !maze[pos_0 + 1][pos_1].visited && my_loc->can_move_to(maze[pos_0 + 1][pos_1]) && my_loc->ballgreifer == false) {
             State east_state(&maze[pos_0 + 1][pos_1], (1 - current_state->cur_dir + 4) % 4, 1, counter);
             east_state.location->set_visited(true); // Mark the location as visited
             log(east_state.to_string()); // print to terminal
             state_vector.push_back(east_state);
         }
-        if(!my_loc->walls[2] && !maze[pos_0][pos_1 - 1].visited && my_loc->can_move_to(maze[pos_0][pos_1 - 1])) {
+        if(!my_loc->walls[2] && !maze[pos_0][pos_1 - 1].visited && my_loc->can_move_to(maze[pos_0][pos_1 - 1]) && my_loc->ballgreifer == false) {
             State south_state(&maze[pos_0][pos_1 - 1], (2 - current_state->cur_dir + 4) % 4, 2, counter);
             south_state.location->set_visited(true); // Mark the location as visited
             log(south_state.to_string()); // print to terminal
             state_vector.push_back(south_state);
         }
-        if(!my_loc->walls[3] && !maze[pos_0 - 1][pos_1].visited && my_loc->can_move_to(maze[pos_0 - 1][pos_1])) {
+        if(!my_loc->walls[3] && !maze[pos_0 - 1][pos_1].visited && my_loc->can_move_to(maze[pos_0 - 1][pos_1]) && my_loc->ballgreifer == false) {
             State west_state(&maze[pos_0 - 1][pos_1], (3 - current_state->cur_dir + 4) % 4, 3, counter);
             west_state.location->set_visited(true); // Mark the location as visited
             log(west_state.to_string()); // print to terminal
@@ -364,6 +396,19 @@ int find_bfs_shortest_path() {
     log("No solution found");
     return -1; // If no solution is found
 }
+
+// ------------------------------------------------------------------------------------------------------------------------
+// Function to grab the ball 
+
+void grab_ball(){
+    // Drive to the ball
+    move_forward(); move_forward(); turn_right(); move_forward();
+    // Sleep for 1 second to simulate grabbing the ball
+    Sleep(1000); 
+    // Drive back to the start
+    turn_around(); move_forward(); turn_right();
+}
+
 
 // Takes a solution state and uses it to physically traverse the maze - this constitutes the fastest possible run
 void execute_shortest_path(int solution_position) {
@@ -381,6 +426,11 @@ void execute_shortest_path(int solution_position) {
     }
     int counter = act_vector.size() - 1;
     log("Backtracking complete");
+    // Accounting for the fact that we might have to grab the ball first
+    if (BALLGREIFER == true) {
+        grab_ball();
+        counter -= 2; // So that we skip the first two actions
+    }
     while (counter >= 0) {    // start at the back of actions (at origin) and execute them in the maze until we are at the first action
         int act = act_vector[counter]; // Get action from vector
         mark_solution_api();  // Mark my square in MMS as part of the solution on the maze for better visualization
@@ -402,6 +452,9 @@ void execute_shortest_path(int solution_position) {
 int main() { 
     log("Running...");
     initialize_maze(); //initializing maze
+    if (BALLGREIFER == true) {
+        initialize_maze_with_ballgreifer();
+    }
     dfs_map_maze(); // Mapping the maze using depth-first search
     log("DFS complete"); 
     set_dir(0); // Reset heading to north
