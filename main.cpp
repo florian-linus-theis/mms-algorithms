@@ -256,22 +256,22 @@ void dfs_map_maze() {
         mark_visited_api(cur_position); // Mark current position in API
 
         // If there is no north wall and north location is not visited, put it on loc_stack to explore later
-        if (!cur_loc.walls[0] && !maze[cur_position[0]][cur_position[1] + 1].visited) {
+        if (!cur_loc.walls[0] && !maze[cur_position[0]][cur_position[1] + 1].visited && !maze[cur_position[0]][cur_position[1] + 1].ballgreifer) {
             loc_stack.push(maze[cur_position[0]][cur_position[1] + 1]);
         }
 
         // If there is no east wall and east location is not visited, put it on loc_stack to explore later
-        if (!cur_loc.walls[1] && !maze[cur_position[0] + 1][cur_position[1]].visited) {
+        if (!cur_loc.walls[1] && !maze[cur_position[0] + 1][cur_position[1]].visited && !maze[cur_position[0] + 1][cur_position[1]].ballgreifer) {
             loc_stack.push(maze[cur_position[0] + 1][cur_position[1]]);
         }
 
         // If there is no south wall and south location is not visited, put it on loc_stack to explore later
-        if (!cur_loc.walls[2] && !maze[cur_position[0]][cur_position[1] - 1].visited) {
+        if (!cur_loc.walls[2] && !maze[cur_position[0]][cur_position[1] - 1].visited && !maze[cur_position[0]][cur_position[1] - 1].ballgreifer) {
             loc_stack.push(maze[cur_position[0]][cur_position[1] - 1]);
         }
 
         // If there is no west wall and west location is not visited, put it on loc_stack to explore later
-        if (!cur_loc.walls[3] && !maze[cur_position[0] - 1][cur_position[1]].visited) {
+        if (!cur_loc.walls[3] && !maze[cur_position[0] - 1][cur_position[1]].visited && !maze[cur_position[0] - 1][cur_position[1]].ballgreifer) {
             loc_stack.push(maze[cur_position[0] - 1][cur_position[1]]);
         }
     }
@@ -340,7 +340,7 @@ int find_bfs_shortest_path() {
     State first_state(&maze[0][0]);
     // frontier.push(first_state); // Push first state to queue
     state_vector.push_back(first_state); // Push first state to our queue
-    log(first_state.to_string()); // (added
+    // log(first_state.to_string()); // (added
 
     int counter = 0; 
     // while we have not every state in the state_vector
@@ -369,25 +369,25 @@ int find_bfs_shortest_path() {
         if(!my_loc->walls[0] && !maze[pos_0][pos_1 + 1].visited && my_loc->can_move_to(maze[pos_0][pos_1 + 1]) && my_loc->ballgreifer == false) {
             State north_state(&maze[pos_0][pos_1 + 1], (0 - current_state->cur_dir + 4) % 4, 0, counter);
             north_state.location->set_visited(true); // Mark the location as visited
-            log(north_state.to_string()); // print to terminal
+            // log(north_state.to_string()); // print to terminal
             state_vector.push_back(north_state);
         }
         if(!my_loc->walls[1] && !maze[pos_0 + 1][pos_1].visited && my_loc->can_move_to(maze[pos_0 + 1][pos_1]) && my_loc->ballgreifer == false) {
             State east_state(&maze[pos_0 + 1][pos_1], (1 - current_state->cur_dir + 4) % 4, 1, counter);
             east_state.location->set_visited(true); // Mark the location as visited
-            log(east_state.to_string()); // print to terminal
+            // log(east_state.to_string()); // print to terminal
             state_vector.push_back(east_state);
         }
         if(!my_loc->walls[2] && !maze[pos_0][pos_1 - 1].visited && my_loc->can_move_to(maze[pos_0][pos_1 - 1]) && my_loc->ballgreifer == false) {
             State south_state(&maze[pos_0][pos_1 - 1], (2 - current_state->cur_dir + 4) % 4, 2, counter);
             south_state.location->set_visited(true); // Mark the location as visited
-            log(south_state.to_string()); // print to terminal
+            // log(south_state.to_string()); // print to terminal
             state_vector.push_back(south_state);
         }
         if(!my_loc->walls[3] && !maze[pos_0 - 1][pos_1].visited && my_loc->can_move_to(maze[pos_0 - 1][pos_1]) && my_loc->ballgreifer == false) {
             State west_state(&maze[pos_0 - 1][pos_1], (3 - current_state->cur_dir + 4) % 4, 3, counter);
             west_state.location->set_visited(true); // Mark the location as visited
-            log(west_state.to_string()); // print to terminal
+            // log(west_state.to_string()); // print to terminal
             state_vector.push_back(west_state);
         }
 
@@ -402,9 +402,11 @@ int find_bfs_shortest_path() {
 
 void grab_ball(){
     // Drive to the ball
+    log("grabbing ball");
     move_forward(); move_forward(); turn_right(); move_forward();
     // Sleep for 1 second to simulate grabbing the ball
-    Sleep(1000); 
+    Sleep(2000); 
+    log("ball grabbed");
     // Drive back to the start
     turn_around(); move_forward(); turn_right();
 }
@@ -416,10 +418,9 @@ void execute_shortest_path(int solution_position) {
         log("No solution found");
         return;
     }
-    log("Executing shortest path");
     State state = state_vector[solution_position]; // Get the goal state
     while (state.action != -1) {   // While I have not reached the home position
-        log(state.to_string()); // (added)
+        // log(state.to_string()); // (added)
         act_vector.push_back(state.action);  // Push action to vector
         mark_bktrk_api(state.location->position);  // Mark the backtrack on the maze for visualization
         state = state_vector[state.parent];    // Traverse up to parent
@@ -431,6 +432,7 @@ void execute_shortest_path(int solution_position) {
         grab_ball();
         counter -= 2; // So that we skip the first two actions
     }
+    log("Executing shortest path");
     while (counter >= 0) {    // start at the back of actions (at origin) and execute them in the maze until we are at the first action
         int act = act_vector[counter]; // Get action from vector
         mark_solution_api();  // Mark my square in MMS as part of the solution on the maze for better visualization
@@ -450,11 +452,12 @@ void execute_shortest_path(int solution_position) {
 // Main function
 
 int main() { 
-    log("Running...");
+    log("Starting...");
     initialize_maze(); //initializing maze
     if (BALLGREIFER == true) {
         initialize_maze_with_ballgreifer();
     }
+    log("Mapping the maze...");
     dfs_map_maze(); // Mapping the maze using depth-first search
     log("DFS complete"); 
     set_dir(0); // Reset heading to north
