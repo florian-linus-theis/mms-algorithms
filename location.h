@@ -18,6 +18,9 @@ class Location {
             position[0] = pos[0];
             position[1] = pos[1];
         }
+        if (position == std::vector<int>{0, 0}) {
+            walls[2] = true; // mark bottom wall as true for the start cell
+        }
     }
 
     // takes position as order pair list [x, y]

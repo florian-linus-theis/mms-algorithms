@@ -111,12 +111,6 @@ std::vector<bool> get_walls() {
     walls[(cur_direction + 1) % 4] = API::wallRight(); // Is there a wall to the right
     walls[(cur_direction + 2) % 4] = false; // No wall from the direction we came from also in real scenario we do not have any sensors at the back
     walls[(cur_direction + 3) % 4] = API::wallLeft(); // Is there a wall to the left
-
-    // If it's the first square, mark the bottom wall as there
-    if (cur_position == std::vector<int>{0, 0}) {
-        walls[2] = true;
-    }
-
     return walls;
 }
 
