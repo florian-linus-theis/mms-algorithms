@@ -447,7 +447,7 @@ void execute_shortest_path(int solution_position) {
 }
 
 // ------------------------------------------------------------------------------------------------------------------------
-
+// Function for priotitizing straight paths
 
 
 
