@@ -1,4 +1,5 @@
 // #include "location.h" // importing location class; TODO: import Header file
+#pragma once
 #include <iostream>
 #include <sstream> // for std::ostringstream
 

@@ -5,18 +5,28 @@
 #include "API.h" // Later purposes
 #include <string> // For string operations
 #include <windows.h> // For sleep Function in Ballgreifer simulation
+#include <algorithm> // For A* Star Algorithm
+#include <math.h> // For A* Star Algorithm
+
+#include <cmath> // For A* Star Algorithm 
+#include <unordered_set> // For A* Star Algorithm 
 
 // #include "./location.cpp" // importing location class
+using namespace std;
 #include "location.h"
 #include "state.h" // importing state class
-using namespace std;
+#include "a_star_nodes.h" // importing a_star_node class
 
 // Using the Ballgreifer Version or not?
-constexpr bool BALLGREIFER = true;
+constexpr bool BALLGREIFER = false;
+constexpr int ALGORITHM = 1; // 1 for BFS, 2 for PSP (prioritize straight paths), 3 for A* Star Algorithm
 
 // Initializing maze size with constexpr to set them up as compile-time-constants rather than runtime constants
 constexpr int MAZE_WIDTH = 16;
 constexpr int MAZE_HEIGHT = 16;
+
+// For storing the goal position
+std::vector<int> GOAL_POSITION; 
 
 // For tracking current global direction
 // 0 = North, 1 = East, 2 = South, 3 = West
@@ -28,6 +38,23 @@ std::vector<int> cur_position = {0, 0};
 // For tracking all maze data, create a 2D vector of Locations
 std::vector<std::vector<Location>> maze (MAZE_HEIGHT, std::vector<Location>(MAZE_WIDTH));
 
+// Location object stack for tracking locations that may need to be explored during mapping
+std::stack<Location> loc_stack;
+
+// Direction stack for easy backtracking through maze when a dead end is found during mapping
+std::stack<int> dir_stack;
+
+// Action stack/vector for processing optimal sequence of actions to find goal state
+std::vector<int> act_vector;
+
+// Global array/vector to act as a queue to save all the states such that we do not get any memory leaks
+std::vector<State> state_vector;
+
+// Global array/vector to act as a queue to save all the states such that we do not get any memory leaks
+std::vector<A_star_node> state_vector_psp;
+std::priority_queue<A_star_node> openSet_psp; 
+
+
 // Initialize the maze with Location objects
 // maze is a global variable so no need to pass it here
 void initialize_maze(){
@@ -38,6 +65,15 @@ void initialize_maze(){
   }
 }
 
+void print_maze(){
+    for (int i = 0; i < MAZE_HEIGHT; ++i) {
+        for (int j = 0; j < MAZE_WIDTH; ++j) {
+            cerr << maze[i][j].position[0] << " " << maze[i][j].position[1] << endl;
+            cerr << &maze[i][j] << endl;
+        }
+    }
+    
+}
 
 // To initialize all walls in the Ballgreifer-Area
 void initialize_maze_with_ballgreifer(){
@@ -66,18 +102,6 @@ void initialize_maze_with_ballgreifer(){
     maze[2][2].set_walls({true, true, false, false});
     maze[2][2].set_ballgreifer(true);
 }
-
-// Location object stack for tracking locations that may need to be explored during mapping
-std::stack<Location> loc_stack;
-
-// Direction stack for easy backtracking through maze when a dead end is found during mapping
-std::stack<int> dir_stack;
-
-// Action stack/vector for processing optimal sequence of actions to find goal state
-std::vector<int> act_vector;
-
-// Global array/vector to act as a queue to save all the states such that we do not get any memory leaks
-std::vector<State> state_vector;
 
 // Function to update position by one cell in the maze
 // Move direction can only be range 0-3 with 0 being North
@@ -150,6 +174,14 @@ void mark_bfs_api(std::vector<int> pos = {}) {
     }
     API::setColor(pos[0], pos[1], 'c');
     API::setText(pos[0], pos[1], "dfs");
+}
+
+void mark_psp_api(std::vector<int> pos = {}) {
+    if (pos.empty()) {
+        pos = cur_position;
+    }
+    API::setColor(pos[0], pos[1], 'b');
+    API::setText(pos[0], pos[1], "psp");
 }
 
 // Marks a square orange that has been used in the backtracking part of the algorithm
@@ -356,6 +388,7 @@ int find_bfs_shortest_path() {
         // If it is goal, return the position of it in global state vector
         if (current_state->is_goal()) {
             log("goal state found");
+            GOAL_POSITION = current_state->location->position;
             return counter;
         }
 
@@ -449,7 +482,139 @@ void execute_shortest_path(int solution_position) {
 // ------------------------------------------------------------------------------------------------------------------------
 // Function for priotitizing straight paths
 
+A_star_node* prioritize_straight_paths() {
+    // mark all locations as unvisited
+    for (int i = 0; i < MAZE_HEIGHT; ++i) {
+        for (int j = 0; j < MAZE_WIDTH; ++j) {
+            maze[i][j].set_visited(false);
+        }
+    }
+    log("Marking all locations as unvisited"); 
+    // algorithm that implements the prioritization of straight paths
+    // Generate initial state: parent is self, action is null
+    A_star_node first_state(&maze[0][0]);
+    first_state.set_heuristic(GOAL_POSITION);
+    first_state.set_f();
+    first_state.set_parent_position_in_vec(-1);
+    state_vector_psp.push_back(first_state); // Push first state constant vector
+    openSet_psp.push(first_state); // Push first state to our priority queue
 
+    int counter = 1; 
+    // while we have not every state in the state_vector_psp
+    while (true) {
+        if (counter >= MAZE_HEIGHT*MAZE_WIDTH) { // If we have explored every possible state
+            log("We have explored all states."); // (added)
+            break;
+        }
+        A_star_node* current_state = &state_vector_psp[openSet_psp.top().position_in_vec]; // Get the first node (state) we have not yet explored from the global array (FIFO)
+        openSet_psp.pop();
+        current_state->location->set_visited(true);  // Mark state's location as visited
+        mark_psp_api(current_state->location->position); // Just for visualization purposes in the MMS
+        
+        log(current_state->to_string()); // (added)
+        // If it is goal, return the position of it in global state vector
+        if (current_state->is_goal()) {
+            log("goal state found");
+            return current_state;
+        }
+
+        // Provide new references to my location and position for easier reference/better readability in code below
+        Location* my_loc = current_state->location;
+        int pos_0 = my_loc->position[0];
+        int pos_1 = my_loc->position[1];
+
+        // checks whether there are walls and adds possible connections from current square
+        // Links the next locations to the current location if there are no walls and the next location has not been visited (current location becomes parent of next location)
+        if(!my_loc->walls[0] && !maze[pos_0][pos_1 + 1].visited && my_loc->can_move_to(maze[pos_0][pos_1 + 1]) && my_loc->ballgreifer == false) {
+
+            A_star_node north_state(&maze[pos_0][pos_1 + 1], current_state, (0 - current_state->cur_dir + 4) % 4, 0, counter);
+            north_state.location->set_visited(true); // Mark the location as visited
+            north_state.set_heuristic(GOAL_POSITION);
+            north_state.set_f();
+            north_state.set_parent_position_in_vec(current_state->position_in_vec);
+            // log(north_state.to_string()); // print to terminal
+            state_vector_psp.push_back(north_state);
+            openSet_psp.push(north_state);
+            counter++;
+        }
+        if(!my_loc->walls[1] && !maze[pos_0 + 1][pos_1].visited && my_loc->can_move_to(maze[pos_0 + 1][pos_1]) && my_loc->ballgreifer == false) {
+            A_star_node east_state(&maze[pos_0 + 1][pos_1], current_state, (1 - current_state->cur_dir + 4) % 4, 1, counter);
+            east_state.location->set_visited(true); // Mark the location as visited
+            east_state.set_heuristic(GOAL_POSITION);
+            east_state.set_f();
+            east_state.set_parent_position_in_vec(current_state->position_in_vec);
+            // log(east_state.to_string()); // print to terminal
+            state_vector_psp.push_back(east_state);
+            openSet_psp.push(east_state);
+            counter++;
+        }
+        if(!my_loc->walls[2] && !maze[pos_0][pos_1 - 1].visited && my_loc->can_move_to(maze[pos_0][pos_1 - 1]) && my_loc->ballgreifer == false) {
+            A_star_node south_state(&maze[pos_0][pos_1 - 1], current_state, (2 - current_state->cur_dir + 4) % 4, 2, counter);
+            south_state.location->set_visited(true); // Mark the location as visited
+            south_state.set_heuristic(GOAL_POSITION);
+            south_state.set_f();
+            south_state.set_parent_position_in_vec(current_state->position_in_vec);
+            // log(south_state.to_string()); // print to terminal
+            state_vector_psp.push_back(south_state);
+            openSet_psp.push(south_state);
+            counter++;
+        }
+        if(!my_loc->walls[3] && !maze[pos_0 - 1][pos_1].visited && my_loc->can_move_to(maze[pos_0 - 1][pos_1]) && my_loc->ballgreifer == false) {
+            A_star_node west_state(&maze[pos_0 - 1][pos_1], current_state, (3 - current_state->cur_dir + 4) % 4, 3, counter);
+            west_state.location->set_visited(true); // Mark the location as visited
+            west_state.set_heuristic(GOAL_POSITION);
+            west_state.set_f();
+            west_state.set_parent_position_in_vec(current_state->position_in_vec);
+            // log(west_state.to_string()); // print to terminal
+            state_vector_psp.push_back(west_state);
+            openSet_psp.push(west_state);
+            counter++;
+        }       
+    }
+    log("No solution found");
+    return nullptr; // If no solution is found
+} 
+
+
+void execute_shortest_path_psp(A_star_node* solution) {
+    if (solution == nullptr) {  // If no solution was found
+        log("No solution found");
+        return;
+    }
+    
+    std::vector<int> act_vector_psp;
+    A_star_node temp = *solution; 
+
+    do {
+        act_vector_psp.push_back(temp.action); // Push action to vector
+        mark_bktrk_api(temp.location->position);  // Mark the backtrack on the maze for visualization
+        temp = state_vector_psp[temp.position_parent_in_vec];   // Traverse up to parent
+    } while (temp.position_parent_in_vec != -1);
+
+    log("Backtracking complete");
+    int counter = 0;;
+    // Accounting for the fact that we might have to grab the ball first
+    if (BALLGREIFER == true) {
+        grab_ball();
+        counter += 2; // So that we skip the first two actions
+    }
+    log("Executing shortest path");
+
+    // reverse the vector to get the correct order of actions
+    reverse(act_vector_psp.begin(), act_vector_psp.end());
+
+    // iterate through the vector and execute the actions
+    for (counter; counter < act_vector_psp.size(); counter++){
+        int act = act_vector_psp[counter]; // Get action from vector
+        mark_solution_api();  // Mark my square in MMS as part of the solution on the maze for better visualization
+        if (act == 1) {
+            turn_right();
+        } else if (act == 3) {
+            turn_left();
+        }
+        move_forward();
+    }
+}
 
 // ------------------------------------------------------------------------------------------------------------------------
 // Main function
@@ -457,6 +622,7 @@ void execute_shortest_path(int solution_position) {
 int main() { 
     log("Starting...");
     initialize_maze(); //initializing maze
+    // print_maze();
     if (BALLGREIFER == true) {
         initialize_maze_with_ballgreifer();
     }
@@ -464,8 +630,20 @@ int main() {
     dfs_map_maze(); // Mapping the maze using depth-first search
     log("DFS complete"); 
     set_dir(0); // Reset heading to north
-    int position_solution = find_bfs_shortest_path(); // Find the shortest path to solution using breadth-first search
-    execute_shortest_path(position_solution);   // Execute the shortest path solution once found
+    if (ALGORITHM == 1){
+        log("Finding shortest path using BFS...");
+        int position_solution = find_bfs_shortest_path(); // Find the shortest path to solution using breadth-first search
+        execute_shortest_path(position_solution);   // Execute the shortest path solution once found
+    } else if (ALGORITHM == 2){
+        log("Finding shortest path using BFS...");
+        int position_solution = find_bfs_shortest_path(); // Find the shortest path to solution using breadth-first search
+        // print_maze();
+        log("Prioritizing straight paths...");
+        A_star_node* solution_a_star = prioritize_straight_paths();
+        // print_maze();
+        execute_shortest_path_psp(solution_a_star);
+        log("this worked");
+    }
     log("Done!");
     return 0;
 }
