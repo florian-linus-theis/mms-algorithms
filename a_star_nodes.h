@@ -2,6 +2,7 @@
 #include "location.h" // importing location class; TODO: import Header file
 #include <iostream>
 #include <sstream> // for std::ostringstream
+#include <math.h>
 
 class A_star_node {
 	public:
@@ -14,7 +15,7 @@ class A_star_node {
     int position_in_vec = 0; // position of the node 
     int position_parent_in_vec = 0; // position of the parent node
 
-    int streak = 0; // cost from start to current node
+    int streak = 1; // cost from start to current node
     int g = 0; // cost from start to current node
     int heuristic = 0; // heuristic cost from current node to goal node
     int f = 0; // total cost of the node
@@ -61,7 +62,7 @@ class A_star_node {
     }
 
     void set_heuristic(std::vector<int> goal_position) {
-        heuristic = this->location->get_manhatten_distance(goal_position) - streak * 7;
+        heuristic = this->location->get_manhatten_distance(goal_position) - streak ; // heuristic cost from current node to goal node
     }
 
     void set_g() {
@@ -80,7 +81,7 @@ class A_star_node {
         if(parent!= nullptr && parent->cur_dir == cur_dir) {
             streak = parent->streak + 1;
         } else {
-            streak = 0;
+            streak = 1;
         }
     }
 
