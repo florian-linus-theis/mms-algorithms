@@ -33,8 +33,6 @@ class A_star_node {
     // For printing the state
     std::string to_string() const {
         std::ostringstream oss;
-        std::cerr << "tach1" << std::endl;
-        std::cerr << location << std::endl;
         oss << "Location: (" << location->position[0] << ", " << location->position[1] << ")" << std::endl;
         oss << "Own position: " << this << std::endl; // "this" is a pointer to the current object
         oss << "Parent position: " << parent << "" << std::endl; // "this" is a pointer to the current object
@@ -62,7 +60,7 @@ class A_star_node {
     }
 
     void set_heuristic(std::vector<int> goal_position) {
-        heuristic = this->location->get_manhatten_distance(goal_position) - streak * 3;
+        heuristic = this->location->get_manhatten_distance(goal_position) - streak * 7;
     }
 
     void set_g() {
