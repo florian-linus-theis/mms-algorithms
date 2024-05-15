@@ -1,4 +1,5 @@
 // Using vector class in c++ for documentation see: https://en.cppreference.com/w/cpp/container/vector
+#pragma once
 #include <vector>
 #include <iostream>
 // using namespace std;
@@ -39,6 +40,10 @@ class Location {
     // sets the ballgreifer property
     void set_ballgreifer(bool bg=true) {
         ballgreifer = bg;
+    }
+
+    int get_manhatten_distance(std::vector<int> goal_location) {
+        return abs(position[0] - goal_location[0]) + abs(position[1] - goal_location[1]);
     }
 
     // takes the position of another Location Cell and return boolean whether two cells are adjacent and have no walls in between them
